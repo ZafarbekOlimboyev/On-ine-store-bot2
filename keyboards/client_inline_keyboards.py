@@ -41,3 +41,44 @@ left_right_k = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="⬅️",callback_data="left"),
      InlineKeyboardButton(text="➡️",callback_data="right")]
 ])
+
+def make_ad_kb_with_left_right(start,stop) -> InlineKeyboardMarkup:
+    row1 = []
+    row2 = []
+    s = 1
+    for i in range(start,stop):
+        if s <= 5:
+            row1.append(
+                InlineKeyboardButton(text=str(s), callback_data=str(i))
+            )
+        else:
+            row2.append(
+                InlineKeyboardButton(text=str(s), callback_data=str(i))
+            )
+        s +=1
+    ad_list_kb = InlineKeyboardMarkup(inline_keyboard=[
+        row1,
+        row2,
+        [InlineKeyboardButton(text="⬅️", callback_data="left"),
+         InlineKeyboardButton(text="➡️", callback_data="right")]
+    ])
+    return ad_list_kb
+def make_ad_kb(id) -> InlineKeyboardMarkup:
+    row1 = []
+    row2 = []
+    s = 1
+    for i in id:
+        if s <= 5:
+            row1.append(
+                InlineKeyboardButton(text=str(s), callback_data=str(i))
+            )
+        else:
+            row2.append(
+                InlineKeyboardButton(text=str(s), callback_data=str(i))
+            )
+        s +=1
+    ad_list_kb = InlineKeyboardMarkup(inline_keyboard=[
+        row1,
+        row2
+    ])
+    return ad_list_kb

@@ -116,3 +116,9 @@ class Database:
             (u_id,)
         )
         return ads.fetchall()
+    def find_my_ads(self,u_id,ads_name):
+        ads = self.cursor.execute(
+            f"SELECT id, ad_title, ad_text, ad_price, ad_images FROM ads WHERE ad_owner=? and ad_title LIKE ?;",
+            (u_id,f"%{ads_name}%")
+        )
+        return ads.fetchall()

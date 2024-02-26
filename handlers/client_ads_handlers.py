@@ -7,7 +7,8 @@ from aiogram.types import Message, CallbackQuery, InputMediaPhoto
 from aiogram.filters import CommandStart, Command
 
 from config import DB_NAME, admins
-from keyboards.client_inline_keyboards import get_category_list, get_product_list, left_right_k
+from keyboards.client_inline_keyboards import get_category_list, get_product_list, left_right_k, make_ad_kb, \
+    make_ad_kb_with_left_right
 from states.client_states import ClientAdsStates
 from utils.database import Database
 
@@ -103,8 +104,7 @@ async def ad_phone_handler(message: Message, state: FSMContext):
     except:
         await message.answer("Resend phone please...")
 
-
-@ads_router.message(Command('ads'))
+@ads_router.message(Command('all_ads')) #Bu komanda aslida "ads" edi ammo men uni "all_ads"ga o'zgartirdim
 async def all_ads_handler(message: Message, state: FSMContext):
     all_ads = db.get_my_ads(message.from_user.id)
     if all_ads is None:
@@ -130,8 +130,8 @@ async def all_ads_handler(message: Message, state: FSMContext):
 @ads_router.callback_query(ClientAdsStates.showAllAds)
 async def show_all_ads_handler(callback: CallbackQuery, state: FSMContext):
     all_data = await state.get_data()
-    index = all_data.get('index', None)
-    all_ads = all_data.get('all_ads', None)
+    index = all_data.get('index')
+    all_ads = all_data.get('all_ads')
 
     if callback.data == 'right':
         if index == len(all_ads)-1:
@@ -166,3 +166,100 @@ async def show_all_ads_handler(callback: CallbackQuery, state: FSMContext):
         )
 
 
+#----------------------------HOME WORK-------------------------------------------------#
+
+#-------------------------COMMAND 'ads' -----------------------------------------------#
+
+#___________________________START______________________________________________________#
+
+@ads_router.message(Command("ads"))
+async def ads(msg: Message,  state: FSMContext):
+    await msg.answer("Please send your ad name..")
+    await state.set_state(ClientAdsStates.ad_state)
+
+#-------------------------------------------------------------------------------------#
+
+@ads_router.message(ClientAdsStates.ad_state)
+async def find_ad(msg: Message, state: FSMContext):
+    all_ads = db.find_my_ads(u_id=msg.from_user.id,ads_name=msg.text)
+    if not all_ads:
+        await msg.answer(text="You have no any ads")
+        await state.clear()
+    elif len(all_ads) == 1:
+        ids = [i for i in range(len(all_ads))]
+        await state.update_data(all_ads=all_ads)
+        await msg.answer(text="Results 1 of 1\n\n1. "+all_ads[0][1],reply_markup=make_ad_kb(id=ids))
+    elif len(all_ads) <= 10:
+        ids = [i for i in range(len(all_ads))]
+        await state.update_data(all_ads=all_ads,ids=ids)
+        text = f'Results 1-{len(all_ads)}  of {len(all_ads)}\n\n'
+        titles = [i[1] for i in all_ads]
+        s = 1
+        for i in titles:
+            text += f"\t{s}. {i}\n"
+            s += 1
+        await msg.answer(text=text,reply_markup=make_ad_kb(id=ids))
+    else:
+        await state.update_data(all_ads=all_ads,interval_start=0,interval_stop=10)
+        text = f'Results 1-10  of {len(all_ads)}\n\n'
+        titles = [i[1] for i in all_ads]
+        s = 1
+        for i in range(10):
+            text += f"\t{s}. {titles[i]}\n"
+            s += 1
+        await msg.answer(text=text, reply_markup=make_ad_kb_with_left_right(start=0,stop=10))
+
+
+#------------------------------------------------------------------------------------------------#
+
+
+@ads_router.callback_query(ClientAdsStates.ad_state)
+async def ads_handler(query: CallbackQuery, state: FSMContext):
+    all_ads = (await state.get_data()).get('all_ads')
+    data = await state.get_data()
+    start = data.get("interval_start")
+    stop = data.get("interval_stop")
+    if query.data == "left":
+        if start == 0:
+            start = len(all_ads)-(len(all_ads)%10)
+            stop = len(all_ads)
+        elif len(all_ads) == stop:
+            start = 0
+            stop = 10
+        else:
+            start -= 10
+            stop -= 10
+        await state.update_data(interval_start=start, interval_stop=stop)
+        text = f'Results {start+1}-{stop}  of {len(all_ads)}\n\n'
+        titles = [i[1] for i in all_ads]
+        s = 1
+        for i in range(start,stop):
+            text += f"\t{s}. {titles[i]}\n"
+            s += 1
+        await query.message.edit_text(text=text, reply_markup=make_ad_kb_with_left_right(start=start, stop=stop))
+    elif query.data == "right":
+        if len(all_ads) == stop:
+            start = 0
+            stop = 10
+        elif len(all_ads)-len(all_ads)%10 == stop:
+            start = stop
+            stop = len(all_ads)
+        else:
+            start += 10
+            stop += 10
+        await state.update_data(all_ads=all_ads, interval_start=start, interval_stop=stop)
+        text = f'Results {start+1}-{stop}  of {len(all_ads)}\n\n'
+        titles = [i[1] for i in all_ads]
+        s = 1
+        print(start,stop)
+        for i in range(start, stop):
+            text += f"\t{s}. {titles[i]}\n"
+            s += 1
+        await query.message.edit_text(text=text, reply_markup=make_ad_kb_with_left_right(start=start, stop=stop))
+    else:
+        ads = all_ads[int(query.data)]
+        await query.message.answer_photo(
+            photo=ads[4],
+            caption=f"<b>{ads[1]}</b>\n\n{ads[2]}\n\nPrice: ${ads[3]}",
+            parse_mode=ParseMode.HTML
+        )

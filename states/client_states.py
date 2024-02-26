@@ -11,3 +11,4 @@ class ClientAdsStates(StatesGroup):
     insertPhone = State()
 
     showAllAds = State()
+    ad_state = State()
